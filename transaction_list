@@ -1,0 +1,14 @@
+#!/bin/bash
+
+##### Constants
+stockcode="skyebank"
+startdate="2013-01-01"
+enddate="2013-12-31"
+
+##### Main
+sudo su << EOF
+cd ~
+mysql -u root
+USE smartbroker;
+SELECT trans_date,buyinghouse,sellinghouse,stockcode,qty,unitprice,amount FROM transaction WHERE stockcode="$stockcode" AND trans_date BETWEEN '$startdate' AND '$enddate';
+EOF

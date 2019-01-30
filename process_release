@@ -1,0 +1,85 @@
+#!/bin/bash
+
+##### Constants
+base_dir="/var/www"
+frontend_dir="/var/www/frontend/html"
+frontend_clone_dir="/ntb_frontend"
+api_dir="/var/www/api/html"
+api_clone_dir="/new_tech_bs"
+frontend_git_url="https://github.com/ahertlcode/ntb_frontend.git"
+api_git_url="https://github.com/ahertlcode/new_tech_bs.git"
+
+
+
+##### Functions
+do_frontend_release(){
+    echo "Frontend Release!"
+    echo "processing frontend release...";
+    
+    if [ ! -d "$frontend_dir" ]; then
+        sudo mkdir -p $frontend_dir
+        sudo chown -R $USER:$USER $frontend_dir
+        sudo chmod -R 755 $base_dir
+    fi
+    
+    cd $frontend_dir
+    git clone $frontend_git_url
+    printf "\n...\n"
+    echo "Copying cloned file to destination web folder"
+    sudo cp -a "$frontend_dir$frontend_clone_dir/." $frontend_dir
+    echo "Ok"
+    printf "\n...\n"
+    echo "Removing unusued folder from server"
+    sudo rm -rf "$frontend_dir$frontend_clone_dir"
+    echo "Ok"
+    printf "\n...\n"
+    echo "Configuring file system for browser access."
+    sudo chown -R $USER:$USER $frontend_dir
+    sudo chgrp -R www-data $frontend_dir
+    sudo chmod -R ug+rwx $frontend_dir
+    printf "\nDone\n\n"
+    echo "Completed successfully!"
+}
+
+do_api_release(){
+    echo "API release!";
+    echo "processing api release...";
+    if [ ! -d "$api_dir" ]; then
+        sudo mkdir -p $api_dir
+        sudo chown -R $USER:$USER $api_dir
+        sudo chmod -R 755 $base_dir
+    fi
+    
+    cd $api_dir
+    git clone $api_git_url
+    printf "\n...\n"
+    echo "Copying cloned file to destination web folder"
+    sudo cp -a "$api_dir$api_clone_dir/." $api_dir
+    echo "Ok"
+    printf "\n...\n"
+    echo "Removing unusued folder from server"
+    sudo rm -rf "$api_dir$api_clone_dir"
+    echo "Ok"
+    printf "\n...\n"
+    echo "Configuring file system for browser access."
+    sudo chown -R $USER:$USER $api_dir
+    sudo chgrp -R www-data $api_dir
+    sudo chmod -R ug+rwx $api_dir
+    cd $api_dir
+    composer install
+    composer dump
+    printf "\nDone\n\n"
+    echo "Completed successfully!"
+}
+
+##### Main
+if [ "$1" != "" ]; then
+    if [ "$1" = "frontend" ]; then
+        do_frontend_release
+    else
+        do_api_release
+    fi
+else
+    echo "Please specify either frontend or api as argument for release."
+    return
+fi
