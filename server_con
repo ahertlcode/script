@@ -1,0 +1,82 @@
+#!/bin/bash
+
+
+get_customers_info(){
+    query='SELECT '
+    comm=","
+    iterator=0
+    for i in "${cust[@]}"
+    do
+        iterator=$((iterator+1))
+        if [ "$iterator" -lt ${#cust[@]} ]; then
+            if [ "$i" == "mobilephone" ]; then
+                i="concat("\""'"\"", mobilephone)"
+            else
+                gh=0
+            fi 
+            query=$query"$i$comm"
+        else
+            query=$query"$i"
+        fi
+    done
+    qend=" from cust_customers into outfile '/var/lib/mysql-files/customers_${current_date}.csv'"
+    query=$query$qend
+    sudo su << EOF
+    cd ~
+    mysql -u $dbuser -p$dbkey
+    USE $db
+    ${query}
+EOF
+sudo rm -rf /var/www/html/customers_${current_date}.csv
+sudo mv /var/lib/mysql-files/customers_${current_date}.csv /var/www/html
+sudo chown $USER:$USER /var/www/html/customers_${current_date}.csv
+sudo chmod 777 /var/www/html/customers_${current_date}.csv
+echo -e "To: abayomismart@gmail.com\nFrom: abayomi.apetu@gmail.com\nSubject: Customers Data as @${current_date}\n" | (cat - && uuencode /var/www/html/customers_${current_date}.csv customers_${current_date}.csv) | ssmtp abayomismart@gmail.com
+}
+
+get_stock_data(){
+    sudo su << EOF
+    cd ~
+    mysql -u $dbuser -p$dbkey
+    USE $db;
+    SELECT trans_date,buyinghouse,sellinghouse,stockcode,qty,unitprice,amount FROM transaction WHERE stockcode="${stockcode}" AND trans_date between "${startdate}" AND "${enddate}" into outfile '/var/lib/mysql-files/${stockcode}_${current_date}.csv';
+EOF
+sudo rm -rf /var/www/html/${stockcode}_${current_date}.csv
+sudo mv /var/lib/mysql-files/${stockcode}_${current_date}.csv /var/www/html
+sudo chown $USER:$USER /var/www/html/${stockcode}_${current_date}.csv
+sudo chmod 777 /var/www/html/${stockcode}_${current_date}.csv
+echo -e "To: abayomismart@gmail.com\nFrom: abayomi.apetu@gmail.com\nSubject: ${stockcode} Stocks\n" | (cat - && uuencode /var/www/html/${stockcode}_${current_date}.csv ${stockcode}_${current_date}.csv) | ssmtp abayomismart@gmail.com
+}
+
+##### Main
+db="eurekadb"
+dbuser="sanman"
+dbkey="OGhYpSiJna"
+current_date=`date +%Y_%m_%d`
+
+
+if [ "$1" != "" ]; then
+    if [ "$1" = "customers" ]; then
+        if [ "$2" != "" ]; then
+            IFS=', ' read -r -a cust <<< "$2"
+            get_customers_info
+        else
+            echo "Please specify the field of customers information you need"
+        fi
+    elif [ "$1" == "stock_data" ]; then
+        if [ "$2" != ""  ]; then
+            IFS=', ' read -r -a params <<< "$2"
+            stockcode="${params[0]}"
+            startdate="${params[1]}"
+            enddate="${params[2]}"
+            get_stock_data
+        else
+            echo 'You must supply stockcode with date range. ex: SKYEBANK:2013-01-01:2017-12-31'
+        fi
+    else
+        echo "Specify valid operation please."
+    fi
+else
+    echo 'Please specify either frontend or api as argument for release.'
+    return
+fi
