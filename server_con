@@ -78,5 +78,4 @@ if [ "$1" != "" ]; then
     fi
 else
     echo 'Please specify either frontend or api as argument for release.'
-    return
 fi
