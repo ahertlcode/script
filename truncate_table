@@ -1,0 +1,183 @@
+#!/bin/bash
+
+#mysql truncate,users smartbroker,abayomi,Aherceo2$
+#mysql duplicate,truncate,eurekadb smartbroker,abayomi,Aherceo2$
+#mysql alter,users smartbroker,abayomi,Aherceo2$
+
+##### Functions
+
+alter_tables(){
+    if [ "$dbtable" == "all" ]; then
+        echo "Altering all tables in ${trunc_db}..."
+        sudo su << EOF
+        cd ~ 
+        mysql -u $dbuser -p$dbpwd
+        USE ${trunc_db}
+        SELECT table_name from information_schema.tables WHERE table_schema='${trunc_db}' into outfile "/var/lib/mysql-files/alter_tables.txt" lines terminated by ","
+EOF
+        sudo mv /var/lib/mysql-files/alter_tables.txt ~/scriptx/alter_tables.txt
+        sudo chown $USER:$USER ~/scriptx/alter_tables.txt
+        sudo chmod 755 ~/scriptx/alter_tables.txt
+    
+        tables=$(<alter_tables.txt)
+        IFS=', ' read -r -a tablex <<< "${tables}"
+        for table in "${tablex[@]}"
+        do
+            if [ "$table" == "users" ]; then
+                sudo su << EOF
+                cd ~
+                mysql -u $dbuser -p$dbpwd
+                set explicit_defaults_for_timestamp=off;
+                USE ${trunc_db}
+                alter table ${table} add column email_verified_at timestamp null default null, add column remember_token varchar(100), add column api_token varchar(100), add column created_at timestamp null default null, add column updated_at timestamp null default null, add column deleted_at timestamp null default null
+EOF
+            else
+                sudo su << EOF
+                cd ~
+                mysql -u $dbuser -p$dbpwd
+                set explicit_defaults_for_timestamp=off;
+                USE ${trunc_db}
+                alter table ${table} add column created_at timestamp null default null, add column updated_at timestamp null default null, add column deleted_at timestamp null default null
+EOF
+        fi
+        done
+   else
+        if [ "$dbtable" == "users" ]; then
+                sudo su << EOF
+                cd ~
+                mysql -u $dbuser -p$dbpwd
+                set explicit_defaults_for_timestamp=off;
+                USE ${trunc_db}
+                alter table ${dbtable} add column email_verified_at timestamp null default null, add column remember_token varchar(100), add column api_token varchar(100), add column created_at timestamp null default null, add column updated_at timestamp null default null, add column deleted_at timestamp null default null
+EOF
+            else
+                sudo su << EOF
+                cd ~
+                mysql -u $dbuser -p$dbpwd
+                set explicit_defaults_for_timestamp=off;
+                USE ${trunc_db}
+                alter table ${dbtable} add column created_at timestamp null default null, add column updated_at timestamp null default null, add column deleted_at timestamp null default null
+EOF
+        fi
+   fi
+}
+
+truncate_all_db_table(){
+    echo "Truncating all tables in ${trunc_db}..."
+    sudo su << EOF
+    cd ~ 
+    mysql -u $dbuser -p$dbpwd
+    USE ${trunc_db}
+    SELECT table_name from information_schema.tables WHERE table_schema='${trunc_db}' into outfile "/var/lib/mysql-files/tables.txt" lines terminated by ","
+EOF
+    sudo mv /var/lib/mysql-files/tables.txt ~/scriptx/tables.txt
+    sudo chown $USER:$USER ~/scriptx/tables.txt
+    sudo chmod 755 ~/scriptx/tables.txt
+    
+    tables=$(<tables.txt)
+    IFS=', ' read -r -a tablex <<< "${tables}"
+    for table in "${tablex[@]}"
+    do
+        
+        sudo su << EOF
+        cd ~
+        mysql -u $dbuser -p$dbpwd
+        USE ${trunc_db}
+        truncate table ${table}
+EOF
+    done
+    
+}
+
+truncate_1_table(){
+    echo "Truncating ${dbtable}..."
+    sudo su << EOF
+    cd ~
+    mysql -u $dbuser -p$dbpwd
+    USE $database
+    truncate table $dbtable
+EOF
+    echo "${dbtable} truncated successfully."
+}
+
+do_table_truncate(){
+    if [ "${dbtable}" == "all" ]; then
+        truncate_all_db_table
+    else
+        truncate_1_table
+    fi
+}
+
+duplicate_oracle_db(){
+    echo "${server_type} not supported in this version."
+}
+
+duplicate_mssql_db(){
+    echo "${server_type} not supported in this version."
+}
+
+duplicate_mysql_db(){
+    echo "Creating a duplicate database ${action[2]} from ${database}..."
+    sudo su << EOF
+    cd ~
+    mysql -u $dbuser -p$dbpwd
+    create database "${action[2]}"
+EOF
+    echo "Done.\nStopping mysql server..."
+    sudo service mysql stop
+    echo "Stopped.\nCopying files from ${database} to ${action[2]}..."
+    sudo cp -a "/var/lib/mysql/${database}/." "/var/lib/mysql/${action[2]}"
+    echo "Done.\nStarting mysql server..."
+    sudo service mysql start
+    echo "Started.\nComplete database duplication."
+}
+
+do_db_duplicate(){
+    if [ "${server_type}" == "mysql" ]; then
+        duplicate_mysql_db
+    elif [ "${server_type}" == "oracle" ]; then
+        duplicate_oracle_db
+    elif [ "${server_type}" == "mssql" ]; then
+        duplicate_mssql_db
+    fi
+    if [ "${action[1]}" == "truncate" ]; then
+        dbtable="all"
+        trunc_db="${action[2]}"
+        do_table_truncate
+    else
+        dh=0
+    fi
+}
+
+truncation_option(){
+    if [ "${action[0]}" == "duplicate" ]; then
+        do_db_duplicate
+    elif [ "${action[0]}" == "truncate" ]; then
+        dbtable="${action[1]}"
+        trunc_db="${database}"
+        do_table_truncate
+    elif [ "${action[0]}" == "alter" ]; then
+        dbtable=${action[1]}
+        trunc_db="${database}"
+        alter_tables
+    else
+        echo "You need to specify an action e.g. duplicate or truncate"
+    fi
+}
+
+##### Main
+if [ "$1" != "" ]; then
+    server_type="$1"
+    if [ "$2" != "" ]; then
+        IFS=', ' read -r -a action <<< "$2"
+    fi
+    if [ "$3" != "" ]; then
+        IFS=', ' read -r -a params <<< "$3"
+        database="${params[0]}"
+        dbuser="${params[1]}"
+        dbpwd="${params[2]}"
+        truncation_option
+    fi
+else
+    echo "Please specify Database Server type e.g. mysql, oracle, mssql e.t.c"
+fi

@@ -1,0 +1,168 @@
+#!/bin/bash
+
+##### Functions
+mysql_db_backup(){
+    echo "preparing to backup mysql database instance..."
+    echo "stopping apache web server..."
+    sudo service apache2 stop
+    echo "stopped."
+    echo "stopping mysql database server..."
+    sudo service mysql stop
+    echo "stopped."
+    
+    echo "Copying database file..."
+    
+    #create directory for temp copy if not exists, change 
+    #user to current user and change file permission for 
+    #ease access without sacrificing security
+    if [ ! -d "${home_copy_folder}/data" ]; then
+        sudo mkdir -p "${home_copy_folder}/data"
+        sudo chown -R $USER:$USER "${home_copy_folder}/data"
+        sudo chmod -R 755 "${home_copy_folder}/data"
+    else
+        #remove the content from previous temp copy if they exists
+        sudo rm -rf "${home_copy_folder}/data/*" 
+    fi
+    
+    sudo cp -a "${data_folder}/." "${home_copy_folder}/data"
+    
+    echo "Ok."
+    
+    if [ "$xtype" == "database" ]; then
+        echo "Creating tar.gz archive..."
+        sudo tar pczf "${home_backup_folder}/data.tar.gz" "${home_copy_folder}/data"
+        sudo chown $USER:$USER "${home_backup_folder}/data.tar.gz"
+        sudo chmod -R 755 "${home_backup_folder}/data.tar.gz"
+        echo "Done."
+    fi
+    
+    echo "Starting mysql database server..."
+    sudo service mysql start
+    echo "Ok."
+    echo "Starting apapche web server..."
+    sudo service apache2 start
+    echo "Ok."
+}
+
+web_content_backup(){
+    echo "Preparing to backup website..."
+    echo "Stopping apache web server..."
+    sudo service apache2 stop
+    echo "Stopped."
+    
+    echo "Copying website files and media..."
+    
+    #create directory for temp copy if not exists, change 
+    #user to current user and change file permission for 
+    #ease access without sacrificing security
+    if [ ! -d "$home_copy_folder/web" ]; then
+        sudo mkdir -p $home_copy_folder"/web"
+        sudo chown -R $USER:$USER $home_copy_folder"/web"
+        sudo chmod -R 755 $home_copy_folder"/web"
+    else
+        #remove the content from previous temp copy if they exists
+        sudo rm -rf $home_copy_folder"/web/*"
+    fi
+    
+    sudo cp -a "${web_folder}/." "${home_copy_folder}/web"
+    
+    echo "Ok."
+    
+    if [ "$xtype" == "web" ]; then
+        echo "Creating tar.gz archive..."
+        sudo tar pczf "${home_backup_folder}/web.tar.gz" "${home_copy_folder}/web"
+        sudo chown $USER:$USER "${home_backup_folder}/web.tar.gz"
+        sudo chmod -R 755 "${home_backup_folder}/web.tar.gz"
+        echo "Done."
+    fi
+    
+    echo "Starting apache web server..."
+    sudo service apache2 start
+    echo "Ok."
+}
+
+send_email(){
+    if [ "$xtype" == "all" ]; then
+        echo "Sending backup.tar.gz archive by mail..."
+        echo -e "To: abayomi.apetu@gmail.com\nFrom: abayomismart@gmail.com\nSubject: Server Backup as @${current_date}\n" | (cat - && uuencode ${home_backup_folder}/backup.tar.gz backup.tar.gz) | ssmtp abayomi.apetu@gmail.com
+        echo "Sent!"
+    elif [ "$xtype" == "database" ]; then
+          echo "Sending data.tar.gz archive by mail..."
+          echo -e "To: abayomi.apetu@gmail.com\nFrom: abayomismart@gmail.com\nSubject: Database Backup as @${current_date}\n" | (cat - && uuencode ${home_backup_folder}/data.tar.gz data.tar.gz) | ssmtp abayomi.apetu@gmail.com
+          echo "Sent!"
+    elif [ "$xtype" == "web" ]; then
+          echo "Sending web.tar.gz archive by mail..."
+          echo -e "To: abayomi.apetu@gmail.com\nFrom: abayomismart@gmail.com\nSubject: Web Server Backup as @${current_date}\n" | (cat - && uuencode ${home_backup_folder}/web.tar.gz web.tar.gz) | ssmtp abayomi.apetu@gmail.com
+          echo "Sent!"
+    else
+        f0=0 #nothing happens here
+        echo "Fail: mail not sent."
+    fi
+}
+
+upload_to_googledrive(){
+    if [ "$xtype" == "all" ]; then
+        echo "Uploading backup file to google drive..."
+        gdrive upload ${home_backup_folder}/backup.tar.gz
+        echo "Upload to google drive completed."
+    elif [ "$xtype" == "database" ]; then
+        echo "Uploading database backup to google drive..."
+        gdrive upload ${home_backup_folder}/data.tar.gz
+        echo "Upload to google drive completed."
+    elif [ "$xtype" == "web" ]; then
+        echo "Uploading website backup to google drive..."
+        gdrive upload ${home_backup_folder}/web.tar.gz
+        echo "Upload to google drive completed."
+    else
+        echo "Fail: google drive upload not done."
+    fi
+}
+
+##### Constants
+data_folder=/var/lib/mysql/eurekadb
+web_folder=/var/www/html
+home_copy_folder=/tmp/backup
+home_backup_folder=/backup/working
+current_date=`date +%Y_%m_%d`
+
+##### Main
+if [ "$1" != "" ]; then
+   xtype="$2"
+   if [ "$2" == "all" ]; then
+        mysql_db_backup
+        web_content_backup
+        sudo tar pczf "${home_backup_folder}/backup.tar.gz" "${home_copy_folder}"
+        sudo chown $USER:$USER "${home_backup_folder}/backup.tar.gz"
+        sudo chmod -R 755 "${home_backup_folder}/backup.tar.gz"
+        fz=$(wc -c "/backup/working/backup.tar.gz" | awk '{print $1}')
+        filesize=$((fz/1000000))
+        echo $filesize
+        if [ "$filesize" -lt 25 ]; then
+            send_email
+        else
+            upload_to_googledrive
+        fi
+   elif [ "$2" == "database" ]; then
+        mysql_db_backup
+        fz=$(wc -c "/backup/working/data.tar.gz" | awk '{print $1}')
+        filesize=$((fz/1000000))
+        if [ "$filesize" -lt 25 ]; then
+            send_email
+        else
+            upload_to_googledrive
+        fi
+   elif [ "$2" == "web" ]; then
+        web_content_backup
+        fz=$(wc -c "/backup/working/web.tar.gz" | awk '{print $1}')
+        filesize=$((fz/1000000))
+        if [ "$filesize" -lt 25 ]; then
+            send_email
+        else
+            upload_to_googledrive
+        fi
+   else
+        echo "Please indicate a purpose for your action e.g. all, database, web:"
+   fi
+else
+    echo "Please what did you intend to do? you must specify an action:"   
+fi
