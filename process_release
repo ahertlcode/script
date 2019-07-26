@@ -68,6 +68,9 @@ do_api_release(){
     cd $api_dir
     composer install
     composer dump
+    composer install --optimize-autoloader --no-dev
+    php artisan config:cache
+    php artisan route:cache
     printf "\nDone\n\n"
     echo "Completed successfully!"
 }
