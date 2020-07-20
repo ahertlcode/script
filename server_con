@@ -50,8 +50,8 @@ echo -e "To: abayomismart@gmail.com\nFrom: abayomi.apetu@gmail.com\nSubject: ${s
 
 ##### Main
 db="eurekadb"
-dbuser="sanman"
-dbkey="OGhYpSiJna"
+dbuser=
+dbkey=
 current_date=`date +%Y_%m_%d`
 
 
