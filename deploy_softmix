@@ -2,12 +2,9 @@
 
 ##### Constants
 base_dir="/var/www"
-frontend_dir="/var/www/html/new_tech_bs/frontend"
-frontend_clone_dir="/ntb_frontend"
-api_dir="/var/www/html/new_tech_bs/api"
-api_clone_dir="/new_tech_bs"
-frontend_git_url="https://github.com/ahertlcode/ntb_frontend.git"
-api_git_url="https://github.com/ahertlcode/new_tech_bs.git"
+api_dir="/var/www/html/softcodes/softmix"
+api_clone_dir="/softmix"
+api_git_url="https://github.com/ahertlcode/softmix.git"
 
 
 
@@ -72,14 +69,29 @@ do_api_release(){
     echo "Completed successfully!"
 }
 
+do_back_up(){
+   echo "backing up env file."
+   sudo cp -a "$api_dir/.env" "$api_dir/.env.backup.safe"
+   echo "Backup done!"
+   echo "Ok"
+}
+
+restore_env(){
+  echo "restoring env from backup."
+  sudo cp -a "$api_dir/.env.backup.safe" "$api_dir/.env"
+  echo "Restored!"
+  echo "Ok"
+}
+
 ##### Main
 if [ "$1" != "" ]; then
+    do_back_up
     if [ "$1" = "frontend" ]; then
         do_frontend_release
     else
         do_api_release
     fi
+   restore_env
 else
     echo "Please specify either frontend or api as argument for release."
-    return
 fi

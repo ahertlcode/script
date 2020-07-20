@@ -2,12 +2,12 @@
 
 ##### Constants
 base_dir="/var/www"
-frontend_dir="/var/www/html/new_tech_bs/frontend"
-frontend_clone_dir="/ntb_frontend"
-api_dir="/var/www/html/new_tech_bs/api"
-api_clone_dir="/new_tech_bs"
-frontend_git_url="https://github.com/ahertlcode/ntb_frontend.git"
-api_git_url="https://github.com/ahertlcode/new_tech_bs.git"
+#frontend_dir="/var/www/html/dclm/frontend"
+#frontend_clone_dir="/ntb_frontend"
+api_dir="/var/www/html/biometric"
+api_clone_dir="/biometric"
+#frontend_git_url=""
+api_git_url="https://github.com/ahertlcode/biometric.git"
 
 
 

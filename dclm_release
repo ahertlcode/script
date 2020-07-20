@@ -2,12 +2,12 @@
 
 ##### Constants
 base_dir="/var/www"
-frontend_dir="/var/www/html/new_tech_bs/frontend"
-frontend_clone_dir="/ntb_frontend"
-api_dir="/var/www/html/new_tech_bs/api"
-api_clone_dir="/new_tech_bs"
-frontend_git_url="https://github.com/ahertlcode/ntb_frontend.git"
-api_git_url="https://github.com/ahertlcode/new_tech_bs.git"
+#frontend_dir="/var/www/html/dclm/frontend"
+#frontend_clone_dir="/ntb_frontend"
+api_dir="/var/www/html/dclm"
+api_clone_dir="/dclm_staff_portal"
+#frontend_git_url="https://github.com/ahertlcode/ntb_frontend.git"
+api_git_url="https://github.com/dclm-code/dclm_staff_portal.git"
 
 
 
@@ -52,6 +52,7 @@ do_api_release(){
     
     cd $api_dir
     git clone $api_git_url
+    #--branch api_release_v1 --single-branch
     printf "\n...\n"
     echo "Copying cloned file to destination web folder"
     sudo cp -a "$api_dir$api_clone_dir/." $api_dir
