@@ -4,9 +4,9 @@ use Net::MySQL;
  
 my $con = Net::MySQL->new(
     hostname => 'localhost',   # Default use UNIX socket
-    database => 'smartbroker',
+    database => '',
     user     => 'abayomi',
-    password => 'Aherceo2$'
+    password => ''
 );
  
 my $stockcode = "skyebank";
